@@ -19,26 +19,26 @@ Posting konten berkualitas secara konsisten di media sosial membutuhkan waktu da
 
 ## 🏗️ Architecture & Workflow Structure
 
-[ Schedule Trigger ]
+[ 🕒 Schedule Trigger ]
 │
 ▼
-[ Generate Caption & Prompt (GPT-4o) ]
+[ 🧠 Generate Caption & Prompt (GPT-4o) ] ─── (Structured JSON Output)
 │
 ▼
-[ Generate Banner (DALL-E 3) ]
+[ 🎨 Generate Banner (DALL-E 3) ]
 │
 ▼
-[ Send Approval to Telegram ] ───( Telegram Message with Inline Buttons )
+[ 📱 Send Approval to Telegram ] ───> (Pesan Telegram + Tombol Inline Keyboard)
 │
-┌──────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┘
+│ (Interaksi Pengguna / Klik Tombol)
+▼
+[ ⚡ Telegram Trigger (Approval) ] ─── (Capture Callback Query)
 │
 ▼
-[ Telegram Trigger (Callback Query) ]
-│
-▼
-[ Check Action (Switch Node) ]
-├── (Approve) ──> [ Notify Approved & Publish ]
-└── (Reject)  ──> [ Notify Rejected ]
+[ 🔀 Check Action (Switch Node) ]
+├── (Output 0: approve) ──> [ ✅ Notify Approved ] ──> (Publish to Social Media)
+└── (Output 1: reject)  ──> [ ❌ Notify Rejected ] ──> (Log Cancellation)
 
 
 ---
@@ -73,16 +73,6 @@ Posting konten berkualitas secara konsisten di media sosial membutuhkan waktu da
    * `Notify Approved`
    * `Notify Rejected`
 3. Isikan `Chat ID` Telegram kamu pada field `Chat ID` di node **Send Approval to Telegram**.
-
----
-
-## 📸 Demo & Screenshots
-
-| Canvas Workflow | Approval Preview di Telegram |
-|---|---|
-| ![Canvas Workflow](./assets/n8n-canvas.png) | ![Telegram Preview](./assets/telegram-preview.png) |
-
----
 
 ## 📝 Future Improvements
 * [ ] Integrasi otomatisasi publikasi langsung ke API LinkedIn & Twitter/X saat status `Approved`.
