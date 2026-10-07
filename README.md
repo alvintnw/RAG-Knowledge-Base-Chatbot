@@ -19,27 +19,6 @@ Posting konten berkualitas secara konsisten di media sosial membutuhkan waktu da
 
 ## 🏗️ Architecture & Workflow Structure
 
-```mermaid
-flowchart TD
-    A[🕒 Schedule Trigger] --> B[🧠 Generate Caption & Prompt - GPT-4o]
-    B -- Structured JSON --> C[🎨 Generate Banner - DALL-E 3]
-    C --> D[📱 Send Approval to Telegram]
-    
-    D -. Interaksi Pengguna .-> E[⚡ Telegram Trigger - Approval]
-    E -- Capture Callback Query --> F{🔀 Check Action - Switch Node}
-    
-    F -- Output 0: approve --> G[✅ Notify Approved & Publish]
-    F -- Output 1: reject --> H[❌ Notify Rejected & Log]
-
----
-
-### Solusi 2: Format ASCII Sederhana (Jika Ingin Tetap Pakai Text Code Block)
-
-Jika ingin tetap menggunakan format teks ASCII, salin teks yang sudah dibuat lebih ringkas dan pendek berikut agar tidak terpotong atau tergulung layar:
-
-```markdown
-## 🏗️ Architecture & Workflow Structure
-
 ```text
 [ 🕒 Schedule Trigger ]
        │
@@ -59,11 +38,6 @@ Jika ingin tetap menggunakan format teks ASCII, salin teks yang sudah dibuat leb
 [ 🔀 Check Action (Switch Node) ]
        ├── (Approve) ──> [ ✅ Notify Approved & Publish ]
        └── (Reject)  ──> [ ❌ Notify Rejected & Log ]
-
----
-
-**Saran:** Gunakan **Solusi 1 (Mermaid.js)** karena hasilnya berupa grafik modern yang dinamis di GitHub!
-
 
 ---
 
