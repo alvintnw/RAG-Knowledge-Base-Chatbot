@@ -1,0 +1,655 @@
+{
+  "name": "RAG Knowledge Base Chatbot (Drive + Qdrant + Telegram)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 1. INGESTION (Google Drive -> Qdrant)\nFile baru/diubah di folder Drive diproses otomatis.\n\n**Sebelum jalan:**\n- Ganti FOLDER_ID di kedua Drive Trigger\n- Ganti URL Qdrant di node 'Hapus Vektor Lama'\n- Pasang semua credentials\n\nSaat file diubah, vektor lama dihapus dulu (berdasar metadata.file_id) agar tidak duplikat.",
+        "height": 260,
+        "width": 520,
+        "color": 4
+      },
+      "id": "1369b562-198d-48f8-843b-2f2556d4d2df",
+      "name": "Catatan Ingestion",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4496,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## 2. CHATBOT (Telegram -> AI Agent + RAG)\n**Sebelum jalan:**\n- Ganti chat ID di node 'Cek Akses' (daftar user yang diizinkan)\n- n8n harus bisa diakses publik via HTTPS agar webhook Telegram berfungsi\n- Postgres untuk memori percakapan (tabel dibuat otomatis)",
+        "height": 240,
+        "width": 520,
+        "color": 5
+      },
+      "id": "854e0d03-a4d8-4b7f-b00e-79823e569a07",
+      "name": "Catatan Chat",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4496,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "GANTI_DENGAN_FOLDER_ID_GOOGLE_DRIVE",
+          "mode": "id"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "850c4099-3891-4610-b71a-8f5f40647761",
+      "name": "Drive Trigger - File Baru",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        4624,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "GANTI_DENGAN_FOLDER_ID_GOOGLE_DRIVE",
+          "mode": "id"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "id": "c5b79423-8bd0-434d-9d93-07a9b01be52a",
+      "name": "Drive Trigger - File Diubah",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        4624,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a188a17e-48e0-47cb-b3f7-654096c936e6",
+              "name": "file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "a6ee6b0e-b722-45fb-bd49-e2bf94adec04",
+              "name": "file_name",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "4442e0f8-3655-43ca-9189-a58b814635cd",
+              "name": "mime_type",
+              "value": "={{ $json.mimeType }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "77016bdc-9624-4f87-846d-672537326ce1",
+      "name": "Normalize File Info",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4880,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://qdrant:6333/collections/knowledge_base/points/delete?wait=true",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "qdrantApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ filter: { must: [ { key: 'metadata.file_id', match: { value: $json.file_id } } ] } }) }}",
+        "options": {}
+      },
+      "id": "ab079f13-576b-4fc1-821e-3b45c680a78c",
+      "name": "Hapus Vektor Lama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        5120,
+        864
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Normalize File Info').item.json.file_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf",
+              "sheetsToFormat": "application/pdf"
+            }
+          }
+        }
+      },
+      "id": "4c8290c8-6b66-4e28-8ae4-ac9b8f79b733",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        5360,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "knowledge_base",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "73f31bf6-45a7-4b3d-979e-579f2cae7168",
+      "name": "Qdrant - Simpan Dokumen",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        5600,
+        864
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "b377da3c-da9e-4c29-a21f-dc3891e6818d",
+      "name": "Embeddings OpenAI (Ingest)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5568,
+        1120
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Tk0ItMLHkWsbdQpn",
+          "name": "OpenAI account 216"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "file_id",
+                "value": "={{ $('Normalize File Info').item.json.file_id }}"
+              },
+              {
+                "name": "file_name",
+                "value": "={{ $('Normalize File Info').item.json.file_name }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "da84570e-42d5-4869-a809-5300b406aa65",
+      "name": "Document Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        5744,
+        1120
+      ]
+    },
+    {
+      "parameters": {
+        "chunkOverlap": 200,
+        "options": {}
+      },
+      "id": "c744c72c-a174-4111-9899-cd7f068c9cea",
+      "name": "Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        5744,
+        1328
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "id": "2474bcc6-549e-4b35-a609-ab390f1e57b8",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        4624,
+        1520
+      ],
+      "webhookId": "48b716e3-8c22-49a7-b476-b3cbd315c4e3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7978d099-55b3-44aa-a4f7-60777d060a96",
+              "leftValue": "={{ Boolean($json.message && $json.message.text) && ['GANTI_DENGAN_CHAT_ID_ANDA'].includes(String($json.message.chat.id)) }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "65ace678-21f8-4aa1-9e00-7c9c6c18a924",
+      "name": "Cek Akses",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4864,
+        1520
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendChatAction",
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "id": "362b0622-3048-4acb-945f-ea8cb812f976",
+      "name": "Typing Indicator",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        5104,
+        1472
+      ],
+      "webhookId": "d046ed7f-b440-4e2b-a7c2-dd790a575e5f"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Telegram Trigger').item.json.message.text }}",
+        "options": {
+          "systemMessage": "Kamu adalah asisten knowledge base internal. Jawab dalam Bahasa Indonesia yang jelas dan ringkas.\n\nATURAN:\n1. Untuk setiap pertanyaan faktual, SELALU panggil tool 'Tool - Knowledge Base' terlebih dahulu. Jika perlu, panggil lebih dari sekali dengan kata kunci berbeda.\n2. Jawab HANYA berdasarkan isi dokumen yang dikembalikan tool. Jangan mengarang.\n3. Jika tidak ada informasi yang relevan, jawab: \"Maaf, saya tidak menemukan informasi tersebut di knowledge base.\"\n4. Untuk sapaan atau obrolan ringan, boleh dijawab langsung tanpa tool.\n5. Di akhir jawaban faktual, tambahkan baris sitasi dengan format:\nSumber: nama_file_1, nama_file_2\nAmbil nama file dari metadata 'file_name' pada dokumen yang kamu gunakan. Jangan tampilkan sumber yang tidak dipakai.",
+          "maxIterations": 6
+        }
+      },
+      "id": "e4adf394-8f1a-42c6-8eb9-a15150d7be92",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        5344,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "32e68356-bcdd-4dd0-863d-097a686bdda5",
+      "name": "Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5216,
+        1744
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Tk0ItMLHkWsbdQpn",
+          "name": "OpenAI account 216"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "contextWindowLength": 10
+      },
+      "id": "35b8e4bd-0101-418b-aa3c-41c2b6ecb79c",
+      "name": "Memori Chat",
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.3,
+      "position": [
+        5408,
+        1744
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Cari informasi di knowledge base perusahaan (dokumen dari Google Drive). Gunakan untuk menjawab pertanyaan faktual. Input: kata kunci atau pertanyaan pencarian.",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "knowledge_base",
+          "mode": "id"
+        },
+        "topK": 5,
+        "options": {}
+      },
+      "id": "ae074871-3430-4218-ae3d-9ecb297ebbed",
+      "name": "Tool - Knowledge Base",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1.3,
+      "position": [
+        5584,
+        1744
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "04049c9e-2371-4279-ad7c-107c37d3bc8c",
+      "name": "Embeddings OpenAI (Query)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        5584,
+        1968
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "Tk0ItMLHkWsbdQpn",
+          "name": "OpenAI account 216"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.output }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "08b06f4e-afb9-48eb-80ab-2c43916f52c8",
+      "name": "Kirim Jawaban",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        5680,
+        1472
+      ],
+      "webhookId": "27c45746-c502-4043-8296-c62f0457aff6"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.message.chat.id }}",
+        "text": "Maaf, Anda tidak memiliki akses ke bot ini, atau pesan yang dikirim bukan teks.",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "4602d924-7ed4-4c6d-807b-4b225d8580dd",
+      "name": "Tolak Akses",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        5104,
+        1632
+      ],
+      "webhookId": "34dc850e-7605-4cd2-95ec-c86d20ebacdf"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Drive Trigger - File Baru": {
+      "main": [
+        [
+          {
+            "node": "Normalize File Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive Trigger - File Diubah": {
+      "main": [
+        [
+          {
+            "node": "Normalize File Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize File Info": {
+      "main": [
+        [
+          {
+            "node": "Hapus Vektor Lama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hapus Vektor Lama": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Simpan Dokumen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI (Ingest)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Qdrant - Simpan Dokumen",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Qdrant - Simpan Dokumen",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Cek Akses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Akses": {
+      "main": [
+        [
+          {
+            "node": "Typing Indicator",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tolak Akses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Typing Indicator": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Kirim Jawaban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memori Chat": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tool - Knowledge Base": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI (Query)": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Tool - Knowledge Base",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1ca8cc84-c995-4665-98b5-4614fa19e9db",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d2e5c81f36b3fb44b914d2b713f588a1feeaf33a9a6f7f2354052708e50fa870"
+  },
+  "nodeGroups": [],
+  "id": "bxAe9yCrUqBYxae6",
+  "tags": []
+}
