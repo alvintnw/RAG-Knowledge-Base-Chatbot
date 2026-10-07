@@ -19,59 +19,27 @@ Posting konten berkualitas secara konsisten di media sosial membutuhkan waktu da
 
 ## 🏗️ Architecture & Workflow Structure
 
-```text
-[ 🕒 Schedule Trigger ]
-       │
-       ▼
-[ 🧠 Generate Caption & Prompt (GPT-4o) ]
-       │
-       ▼
-[ 🎨 Generate Banner (DALL-E 3) ]
-       │
-       ▼
-[ 📱 Send Approval to Telegram ]
-       │ (User Click Button)
-       ▼
-[ ⚡ Telegram Trigger (Approval) ]
-       │
-       ▼
-[ 🔀 Check Action (Switch Node) ]
-       ├── (Approve) ──> [ ✅ Notify Approved & Publish ]
-       └── (Reject)  ──> [ ❌ Notify Rejected & Log ]
+```mermaid
+flowchart TD
+    A[🕒 Schedule Trigger] --> B[🧠 Generate Caption & Prompt - GPT-4o]
+    B -- Structured JSON --> C[🎨 Generate Banner - DALL-E 3]
+    C --> D[📱 Send Approval to Telegram]
+    
+    D -. Interaksi Pengguna .-> E[⚡ Telegram Trigger - Approval]
+    E -- Capture Callback Query --> F{🔀 Check Action - Switch Node}
+    
+    F -- Output 0: approve --> G[✅ Notify Approved & Publish]
+    F -- Output 1: reject --> H[❌ Notify Rejected & Log]
+🛠️ Tech Stack & IntegrationsAutomation Engine: n8nAI Models: OpenAI API (gpt-4o, dall-e-3)Communication Platform: Telegram Bot APIData Format: JSON & Webhook Callbacks
 
----
+🚀 How to Import & Setup
+1. PrerequisitesInisiasi akun n8n (Self-hosted / Cloud).OpenAI API Key.Telegram Bot Token (didapatkan via @BotFather).Telegram Chat ID kamu (didapatkan via @userinfobot).
+2. Import Workflow into n8nSalin seluruh isi file workflow.json dari repository ini.Buka canvas n8n baru.Tekan Ctrl + V (Windows) atau Cmd + V (Mac) untuk melakukan paste.
+3. Credential Setup
+OpenAI Account: Hubungkan API Key milikmu pada node Generate Caption & Prompt (GPT-4o) dan Generate Banner (DALL-E 3).
+Telegram Account: Hubungkan Telegram Bot Token milikmu pada node:Send Approval to TelegramTelegram Trigger (Approval)Notify ApprovedNotify Rejected
+Isikan Chat ID Telegram kamu pada field Chat ID di node Send Approval to Telegram.
 
-## 🛠️ Tech Stack & Integrations
-
-* **Automation Engine:** [n8n](https://n8n.io/)
-* **AI Models:** OpenAI API (`gpt-4o`, `dall-e-3`)
-* **Communication Platform:** Telegram Bot API
-* **Data Format:** JSON & Webhook Callbacks
-
----
-
-## 🚀 How to Import & Setup
-
-### 1. Prerequisites
-* Inisiasi akun n8n (Self-hosted / Cloud).
-* OpenAI API Key.
-* Telegram Bot Token (didapatkan via `@BotFather`).
-* Telegram Chat ID kamu (didapatkan via `@userinfobot`).
-
-### 2. Import Workflow into n8n
-1. Salin seluruh isi file `workflow.json` dari repository ini.
-2. Buka canvas n8n baru.
-3. Tekan `Ctrl + V` (Windows) atau `Cmd + V` (Mac) untuk melakukan paste.
-
-### 3. Credential Setup
-1. **OpenAI Account:** Hubungkan API Key milikmu pada node **Generate Caption & Prompt (GPT-4o)** dan **Generate Banner (DALL-E 3)**.
-2. **Telegram Account:** Hubungkan Telegram Bot Token milikmu pada node:
-   * `Send Approval to Telegram`
-   * `Telegram Trigger (Approval)`
-   * `Notify Approved`
-   * `Notify Rejected`
-3. Isikan `Chat ID` Telegram kamu pada field `Chat ID` di node **Send Approval to Telegram**.
-
-## 📝 Future Improvements
-* [ ] Integrasi otomatisasi publikasi langsung ke API LinkedIn & Twitter/X saat status `Approved`.
-* [ ] Penyimpanan riwayat log konten (Draft, Approved, Rejected) ke database PostgreSQL atau Google Sheets.
+📝 Future Improvements
+[ ] Integrasi otomatisasi publikasi langsung ke API LinkedIn & Twitter/X saat status Approved.
+[ ] Penyimpanan riwayat log konten (Draft, Approved, Rejected) ke database PostgreSQL atau Google Sheets.
